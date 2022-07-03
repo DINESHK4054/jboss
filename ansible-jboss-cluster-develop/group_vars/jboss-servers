@@ -1,0 +1,34 @@
+# JBOSS Archive
+jboss_ver: jboss-eap-6.2
+# JBOSS Ports
+jboss_http_port:   9180
+jboss_ajp_port:    8009
+jboss_https_port:  8443
+# JBOSS Cluster
+jboss_user: ec2-user
+jboss_home: /$HOME/jboss1
+jboss_domain_name: plexus
+jboss_config_dir: /$HOME/jboss1/jboss-eap-6.2
+jboss_default_multicast_address: 230.0.0.4
+jboss_domain_base_dir: /$HOME/jboss1/domain
+jboss_domain_base_url: file:///$HOME/jboss1
+jboss_domain_log_dir: /$HOME/jboss1/cluster/logs
+jboss_group: plexus-server-group
+jboss_messaging_cluster_password: changeme
+jboss_dc: 54.169.174.16 
+jboss_netty_port: 5445
+jboss_master_ipv4: 54.169.174.16
+jboss_slave1_ipv4: 192.168.2.101
+jboss_slave2_ipv4: 192.168.2.102
+jboss_socket_binding_portoffset: 0
+jboss_jgroups_channel: plexus-cluster
+jboss_jgroups_stack: tcp
+jboss_jgroups_port: 7600
+jboss_domain_login_password: \,.zaxs//C3
+jboss_domain_login_user: slave
+cluster_nodes: "{{ groups['jboss-servers'] }}"
+# JVM
+jboss_domain_xms: Xms64m
+jboss_domain_xmx: Xmx512m
+# SYSLOG
+jboss_rsyslog: elk01.com
