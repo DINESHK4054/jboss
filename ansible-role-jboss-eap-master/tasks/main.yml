@@ -1,0 +1,100 @@
+- name: Include distribution and installation type variables
+  include_vars: "{{ item }}"
+  with_items:
+    - "{{ ansible_distribution }}.yml"
+    - "{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml"
+    - install-{{ jboss_eap_install_method }}.yml
+  tags:
+    - jboss_eap
+    - jboss_config
+    - always
+
+- name: Include appropriate installer tasks
+  include: "install-{{ ansible_os_family }}-{{ jboss_eap_install_method }}.yml"
+  tags:
+    - jboss_eap
+
+- name: Configure Kerberos
+  include: kerberos.yml
+  when: jboss_eap_configure_kerberos
+  tags:
+    - jboss_eap
+    - jboss_config
+    - jboss_kerberos
+
+- name: Create Java keystore with self-signed certificate
+  command: >
+    keytool -genkeypair -alias {{ jboss_eap_ssl_keystore_alias }}
+            -keyalg RSA
+            -keysize 2048
+            -keystore  {{ jboss_eap_jboss_home }}/standalone/configuration/{{ jboss_eap_ssl_keystore_name }}
+            -storepass {{ jboss_eap_ssl_keystore_password }}
+            --dname 'CN={{ ansible_hostname | lower }},OU=Engineering,O={{ ansible_domain | lower }},L=Raleigh,S=NC,C=US'
+  args:
+    creates: "{{ jboss_eap_jboss_home }}/standalone/configuration/{{ jboss_eap_ssl_keystore_name }}"
+  tags:
+    - jboss_eap_keystore
+    - jboss_eap_tls
+
+- name: Copy EAP service configuration ({{ jboss_eap_service_conf_file }})
+  template:
+    src: sysconfig_eap{{ jboss_eap_base_version | int }}.j2
+    dest: "{{ jboss_eap_service_conf_file }}"
+    backup: yes
+  notify:
+    - reload systemd
+    - restart eap
+  tags:
+    - jboss_eap
+    - jboss_config
+
+- name: Copy EAP runtime configuration ({{ jboss_eap_runtime_conf_file }})
+  template:
+    src: runtime.conf.j2
+    dest: "{{ jboss_eap_runtime_conf_file }}"
+    owner: "{{ jboss_eap_user }}"
+    group: "{{ jboss_eap_group }}"
+    backup: yes
+  notify: restart eap
+  tags:
+    - jboss_eap
+    - jboss_config
+
+- name: Copy EAP server configuration ({{ jboss_eap_server_config }})
+  copy:
+    src: "{{ jboss_eap_server_config }}"
+    dest: "{{ jboss_eap_jboss_home }}/standalone/configuration/{{ jboss_eap_server_config }}"
+  notify: restart eap
+  when: jboss_eap_server_config_script is not defined
+  tags:
+    - jboss_eap
+    - jboss_config
+
+- name: Copy EAP server configuration script ({{ jboss_eap_server_config_script }}.j2)
+  template:
+    src: "{{ jboss_eap_server_config_script }}.j2"
+    dest: "{{ jboss_eap_jboss_home }}/bin/{{ jboss_eap_server_config_script }}"
+    owner: "{{ jboss_eap_user }}"
+    group: "{{ jboss_eap_group }}"
+    mode: 0644
+  when: jboss_eap_server_config_script is defined
+  notify: reconfigure eap
+  tags:
+    - jboss_eap
+    - jboss_config
+
+- name: Create default JBoss admin user
+  command: "{{ jboss_eap_jboss_home }}/bin/add-user.sh -s -r ManagementRealm -u {{ jboss_eap_admin_user }} -p {{ jboss_eap_admin_password }}"
+  when: jboss_install.changed
+  tags:
+    - jboss_eap
+
+- meta: flush_handlers
+
+- name: Start and enable JBoss
+  service:
+    name: "{{ jboss_eap_service_name }}"
+    state: started
+    enabled: yes
+  tags:
+    - jboss_eap

@@ -1,0 +1,18 @@
+- name: reload systemd
+  command: systemctl daemon-reload
+  when: ansible_distribution_major_version | version_compare('7', '>=')
+
+- name: restart eap
+  service:
+    name: "{{ jboss_eap_service_name }}"
+    state: restarted
+
+- name: reload eap
+  command: "{{ jboss_eap_jboss_home }}/bin/jboss-cli.sh -c reload"
+  become_user: "{{ jboss_eap_user }}"
+  become: yes
+
+- name: reconfigure eap
+  command: "{{ jboss_eap_jboss_home }}/bin/jboss-cli.sh --file={{ jboss_eap_jboss_home }}/bin/{{ jboss_eap_server_config_script }}"
+  become: yes
+  become_user: "{{ jboss_eap_user }}"
